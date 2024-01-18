@@ -2,6 +2,8 @@
 Adapted from https://ai.google.dev/docs/semantic_retriever
 TODO:
     * check if doc already in corpus 
+    * Add printing switch to AQA
+    * Add temperature argument
 '''
 import os
 # import numpy as np
@@ -117,7 +119,7 @@ def listUploadedChunks(document_resource_name):
         print(f'State: {glm.Chunk.State(chunks.state).name}')
 
 
-def AQA(user_query, answer_style="ABSTRACTIVE", doi_filter=None):
+def AQA(user_query, corpus_resource_name, generative_service_client, answer_style="ABSTRACTIVE", doi_filter=None):
     # Or ABSTRACTIVE, VERBOSE, EXTRACTIVE
     MODEL_NAME = "models/aqa"
     # user_query = 'What type of model dide Gao et al. [2013] use to project CH4 emissions from the lakes?'
@@ -230,9 +232,9 @@ if __name__ == '__main__':
 
     ## AQA
 
-    # AQA('Please summarize Delwiche et al.')
-    # AQA('Please summarize Delwiche et al.', doi_filter='10.1016/j.jhydrol.2021.126169')  # should have low probability
-    # AQA('Did this study look at lakes or reservoirs?',
+    # AQA('Please summarize Delwiche et al.', corpus_resource_name, generative_service_client)
+    # AQA('Please summarize Delwiche et al.', corpus_resource_name, generative_service_client, doi_filter='10.1016/j.jhydrol.2021.126169')  # should have low probability
+    # AQA('Did this study look at lakes or reservoirs?', corpus_resource_name, generative_service_client,
     #     'EXTRACTIVE', '10.1029/2022JG006908')
 
     # Define the data rows
@@ -255,7 +257,7 @@ if __name__ == '__main__':
         for j, query in enumerate(queries):
             print(f' > {query}')
             aqa_answer, aqa_prob = AQA(
-                query, answer_style='EXTRACTIVE', doi_filter=doi)
+                query, corpus_resource_name, generative_service_client, answer_style='EXTRACTIVE', doi_filter=doi)
             if aqa_prob > 0.5:
                 df.iloc[i, j] = aqa_answer
             else:
@@ -266,6 +268,19 @@ if __name__ == '__main__':
         output_dir, f'lit_review_matrix_v{v}.xlsx'), sheet_name='Responses')
     df_probs.to_excel(os.path.join(
         output_dir, f'lit_review_matrix_v{v}.xlsx'), sheet_name='Probabilities')
+
+    # Create an ExcelWriter object
+    excel_writer = pd.ExcelWriter(
+        os.path.join(output_dir, f'lit_review_matrix_v{v}.xlsx'), engine='openpyxl')
+
+    # Write the first DataFrame to the 'Responses' sheet
+    df.to_excel(excel_writer, sheet_name='Responses')
+
+    # Write the second DataFrame to a new sheet named 'Probabilities'
+    df_probs.to_excel(excel_writer, sheet_name='Probabilities')
+
+    # Save and close the ExcelWriter
+    excel_writer.close()
     pass
 
     ## SCRAP
